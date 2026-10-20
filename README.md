@@ -1,3 +1,6 @@
+[![release](https://github.com/humbertodias/lupinho-libretro/actions/workflows/release.yml/badge.svg)](https://github.com/humbertodias/lupinho-libretro/actions/workflows/release.yml)
+![GitHub all releases](https://img.shields.io/github/downloads/humbertodias/lupinho-libretro/total)
+
 # Lupinho Libretro
 
 Libretro core for [Lupinho](https://github.com/lupi-org-br/lupinho), the simulator for the Lupi fantasy console. Load a `.lupi` game, or `game.lua` inside a game directory, in RetroArch.
