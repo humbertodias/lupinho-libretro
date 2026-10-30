@@ -61,14 +61,14 @@ LUA_OBJS := $(addprefix build/lua/,$(LUA_SRCS:.c=.o))
 
 OBJS := $(CORE_OBJS) build/ui.o build/lua_api.o $(LUA_OBJS)
 
-.PHONY: all libretro libretro-win clean install/core get/game run
+.PHONY: all libretro libretro-win libretro-android libretro-android-all clean install/core get/game run
 
 all: libretro
 
 libretro: $(OUTPUT)
 
 $(OUTPUT): $(OBJS)
-	@mkdir -p dist
+	@mkdir -p $(dir $@)
 	$(CC) $(SOFLAGS) -o $@ $(OBJS) $(LIBS)
 	cp -f src/lupinho_libretro.info dist/lupinho_libretro.info
 
@@ -92,6 +92,58 @@ build/lua/%.o: $(LUA)/%.c
 
 libretro-win:
 	$(MAKE) all CC="$(MINGW_CC)" EXT=dll SOFLAGS="$(WIN_SOFLAGS)" LIBS="$(WIN_LIBS)" LUAFLAGS=""
+
+# Cross-compile with the Android NDK. ANDROID_NDK is the NDK root.
+# ANDROID_ABI is one of arm64-v8a, armeabi-v7a, x86_64, x86.
+# Output is dist/android/<abi>/lupinho_libretro_android.so, the name RetroArch loads.
+# API 24: 32-bit ABIs use 64-bit off_t, and bionic only declares fseeko/ftello
+# for that mode from Android 7. arm64 links the same API so every core matches.
+ANDROID_API ?= 24
+ANDROID_ABI ?= arm64-v8a
+ANDROID_ABIS ?= arm64-v8a armeabi-v7a x86_64 x86
+ANDROID_SOFLAGS := -shared -Wl,--no-undefined -Wl,-z,max-page-size=16384
+ANDROID_LIBS := -lz -lm
+
+libretro-android:
+	@set -eu; \
+	test -n "$(ANDROID_NDK)" || { echo "ANDROID_NDK is not set" >&2; exit 1; }; \
+	abi="$(ANDROID_ABI)"; api="$(ANDROID_API)"; ndk="$(ANDROID_NDK)"; \
+	case "$$abi" in \
+	  arm64-v8a) triple=aarch64-linux-android ;; \
+	  armeabi-v7a) triple=armv7a-linux-androideabi ;; \
+	  x86_64) triple=x86_64-linux-android ;; \
+	  x86) triple=i686-linux-android ;; \
+	  *) echo "unknown ANDROID_ABI: $$abi" >&2; exit 1 ;; \
+	esac; \
+	prebuilt="$$ndk/toolchains/llvm/prebuilt"; \
+	os=`uname -s`; mach=`uname -m`; \
+	case "$$os" in \
+	  Darwin) \
+	    if [ "$$mach" = "arm64" ] && [ -x "$$prebuilt/darwin-arm64/bin/clang" ]; then host=darwin-arm64; \
+	    else host=darwin-x86_64; fi ;; \
+	  Linux) host=linux-x86_64 ;; \
+	  *) echo "unsupported host for Android build: $$os" >&2; exit 1 ;; \
+	esac; \
+	cc="$$prebuilt/$$host/bin/$${triple}$${api}-clang"; \
+	strip="$$prebuilt/$$host/bin/llvm-strip"; \
+	test -x "$$cc" || { echo "NDK clang not found: $$cc" >&2; exit 1; }; \
+	jobs=`nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4`; \
+	rm -rf build; \
+	$(MAKE) -j"$$jobs" all \
+	  CC="$$cc" \
+	  EXT=so \
+	  OUTPUT="dist/android/$$abi/lupinho_libretro_android.so" \
+	  SOFLAGS="$(ANDROID_SOFLAGS)" \
+	  LIBS="$(ANDROID_LIBS)" \
+	  LUAFLAGS="-DLUA_USE_POSIX"; \
+	cp -f src/lupinho_libretro.info "dist/android/$$abi/lupinho_libretro.info"; \
+	"$$strip" --strip-unneeded "dist/android/$$abi/lupinho_libretro_android.so"
+
+libretro-android-all:
+	rm -rf dist/android
+	@set -e; for abi in $(ANDROID_ABIS); do \
+	  $(MAKE) libretro-android ANDROID_ABI="$$abi" ANDROID_NDK="$(ANDROID_NDK)" ANDROID_API="$(ANDROID_API)"; \
+	done
 
 clean:
 	rm -rf build dist
