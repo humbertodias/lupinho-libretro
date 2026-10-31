@@ -76,7 +76,12 @@ void lupi_pointer_poll(retro_input_state_t cb) {
     left = cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT);
     px = cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_X);
     py = cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_Y);
-    poff = cb(0, RETRO_DEVICE_POINTER, 0, RETRO_DEVICE_ID_POINTER_IS_OFFSCREEN);
+    /*
+     * POINTER_IS_OFFSCREEN is id 15. Some frontends (BizHawk 2.11) only
+     * accept X/Y/PRESSED/COUNT and abort on anything else. Off-screen is
+     * already reported as X/Y = -32768.
+     */
+    poff = 0;
     lx = cb(0, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
     ly = cb(0, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
     loff = cb(0, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN);
