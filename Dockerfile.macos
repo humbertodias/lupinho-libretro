@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1
+FROM crazymax/osxcross:15.5-debian AS osxcross
+FROM debian:trixie-slim AS build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    make clang lld libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
+ENV PATH="/osxcross/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/osxcross/lib"
+WORKDIR /src
+COPY Makefile ./
+COPY src/ src/
+COPY lupinho/src/ lupinho/src/
+RUN --mount=type=bind,from=osxcross,source=/osxcross,target=/osxcross \
+    make -j"$(nproc)" libretro CC=o64-clang EXT=dylib \
+    SOFLAGS=-dynamiclib LIBS="-lz -lm" LUAFLAGS=-DLUA_USE_POSIX \
+    && mv dist/lupinho_libretro.dylib /tmp/x86_64.dylib \
+    && rm -rf build \
+    && make -j"$(nproc)" libretro CC=oa64-clang EXT=dylib \
+    SOFLAGS=-dynamiclib LIBS="-lz -lm" LUAFLAGS=-DLUA_USE_POSIX \
+    && /osxcross/bin/x86_64-apple-darwin*-lipo -create \
+    /tmp/x86_64.dylib dist/lupinho_libretro.dylib -output /tmp/universal.dylib \
+    && mv /tmp/universal.dylib dist/lupinho_libretro.dylib
+
+FROM scratch
+COPY --from=build /src/dist/ /

@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1
+FROM debian:bookworm-slim AS build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    make curl ca-certificates unzip zip file \
+    && rm -rf /var/lib/apt/lists/*
+RUN curl -fL --retry 3 -o /tmp/ndk.zip \
+    https://dl.google.com/android/repository/android-ndk-r28c-linux.zip \
+    && unzip -q /tmp/ndk.zip -d /opt \
+    && rm /tmp/ndk.zip
+ENV ANDROID_NDK=/opt/android-ndk-r28c
+WORKDIR /src
+COPY Makefile ./
+COPY src/ src/
+COPY lupinho/src/ lupinho/src/
+RUN make libretro-android-all \
+    && file dist/android/arm64-v8a/lupinho_libretro_android.so | grep -q "ARM aarch64" \
+    && file dist/android/armeabi-v7a/lupinho_libretro_android.so | grep -q "ARM" \
+    && file dist/android/x86_64/lupinho_libretro_android.so | grep -q "x86-64" \
+    && file dist/android/x86/lupinho_libretro_android.so | grep -q "i386" \
+    && cd dist/android && zip -r ../lupinho_libretro_android.zip .
+
+FROM scratch
+COPY --from=build /src/dist/ /

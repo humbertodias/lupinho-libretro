@@ -17,26 +17,18 @@ permissions:
 jobs:
   build:
     name: ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: linux
-            os: ubuntu-latest
-            target: libretro
             artifact: lupinho_libretro.so
           - name: macos
-            os: macos-latest
-            target: libretro
             artifact: lupinho_libretro.dylib
           - name: windows
-            os: ubuntu-latest
-            target: libretro-win
             artifact: lupinho_libretro.dll
           - name: android
-            os: ubuntu-latest
-            target: libretro-android-all
             artifact: lupinho_libretro_android.zip
 
     steps:
@@ -48,50 +40,11 @@ jobs:
       - name: Checkout submodules
         run: git submodule update --init --depth 1
 
-      - name: Install Linux deps
-        if: matrix.name == 'linux'
-        run: sudo apt-get update && sudo apt-get install -y build-essential zlib1g-dev
-
-      - name: Install MinGW (Windows core)
-        if: matrix.name == 'windows'
-        run: sudo apt-get update && sudo apt-get install -y make gcc-mingw-w64-x86-64 libz-mingw-w64-dev
-
-      - name: Cache Android NDK
-        if: matrix.name == 'android'
-        id: ndk-cache
-        uses: actions/cache@v4
-        with:
-          path: android-ndk-r28c
-          key: android-ndk-r28c-linux
-
-      - name: Install Android NDK
-        if: matrix.name == 'android' && steps.ndk-cache.outputs.cache-hit != 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y make unzip zip curl ca-certificates
-          curl -fL --retry 3 -o ndk.zip https://dl.google.com/android/repository/android-ndk-r28c-linux.zip
-          unzip -q ndk.zip
-          rm -f ndk.zip
-
-      - name: Export Android NDK
-        if: matrix.name == 'android'
-        run: echo "ANDROID_NDK=${GITHUB_WORKSPACE}/android-ndk-r28c" >> "$GITHUB_ENV"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build
-        run: make ${{ matrix.target }}
-
-      - name: Pack Android cores
-        if: matrix.name == 'android'
-        run: |
-          file dist/android/arm64-v8a/lupinho_libretro_android.so
-          file dist/android/armeabi-v7a/lupinho_libretro_android.so
-          file dist/android/x86_64/lupinho_libretro_android.so
-          file dist/android/x86/lupinho_libretro_android.so
-          file dist/android/arm64-v8a/lupinho_libretro_android.so | grep -q "ARM aarch64"
-          file dist/android/armeabi-v7a/lupinho_libretro_android.so | grep -q "ARM"
-          file dist/android/x86_64/lupinho_libretro_android.so | grep -q "x86-64"
-          file dist/android/x86/lupinho_libretro_android.so | grep -q "i386"
-          (cd dist/android && zip -r ../lupinho_libretro_android.zip .)
+        run: make docker PLATFORM=${{ matrix.name }}
 
       - name: Upload core
         uses: actions/upload-artifact@v7

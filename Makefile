@@ -61,9 +61,19 @@ LUA_OBJS := $(addprefix build/lua/,$(LUA_SRCS:.c=.o))
 
 OBJS := $(CORE_OBJS) build/ui.o build/lua_api.o $(LUA_OBJS)
 
-.PHONY: all libretro libretro-win libretro-android libretro-android-all clean install/core get/game run
+.PHONY: all docker libretro libretro-win libretro-android libretro-android-all clean install/core get/game run
 
 all: libretro
+
+# Same build entry point locally and in GitHub Actions. Export only artifacts;
+# compilation happens inside Docker, without reusing the host's object files.
+PLATFORM ?= linux
+DOCKER ?= docker
+
+docker:
+	@case "$(PLATFORM)" in linux|macos|windows|android) ;; \
+	  *) echo "unknown PLATFORM: $(PLATFORM) (linux, macos, windows, android)" >&2; exit 1 ;; esac
+	$(DOCKER) buildx build --platform linux/amd64 --file Dockerfile.$(PLATFORM) --output type=local,dest=dist .
 
 libretro: $(OUTPUT)
 

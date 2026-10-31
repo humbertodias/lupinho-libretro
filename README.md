@@ -8,18 +8,24 @@ Libretro core for [Lupinho](https://github.com/lupi-org-br/lupinho), the simulat
 ## Build
 
 ```bash
-git clone --recurse-submodules https://github.com/humbertodias/lupinho-libretro.git
+git clone https://github.com/humbertodias/lupinho-libretro.git
 cd lupinho-libretro
-make libretro
+git submodule update --init
+make docker PLATFORM=linux
 ```
 
-This writes `dist/lupinho_libretro.so` (Linux), `.dylib` (macOS) or `.dll` (Windows), plus `dist/lupinho_libretro.info`.
-
-Requires a C99 compiler, make and zlib. If the clone skipped submodules:
+Requires Docker with Buildx and make. Local builds and GitHub releases use the same `Dockerfile.$PLATFORM`:
 
 ```bash
-git submodule update --init
+make docker PLATFORM=linux
+make docker PLATFORM=macos
+make docker PLATFORM=windows
+make docker PLATFORM=android
 ```
+
+Artifacts are exported to `dist/`: `lupinho_libretro.so` (Linux), `.dylib` (macOS), `.dll` (Windows), plus `lupinho_libretro.info`. Linux and Windows builds target x86_64; macOS builds a universal binary (x86_64 + arm64) using [osxcross](https://github.com/crazy-max/docker-osxcross). Android builds all four ABIs (`arm64-v8a`, `armeabi-v7a`, `x86_64`, `x86`) into `dist/android/` and `dist/lupinho_libretro_android.zip`. On ARM hosts, Docker must support `linux/amd64` emulation.
+
+For a native build without Docker, run `make libretro` with a C99 compiler, make and zlib installed.
 
 ## Core
 
@@ -68,5 +74,3 @@ make retroarch/run
 | Start / Select | ? / ? |
 
 </details>
-
-

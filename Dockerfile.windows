@@ -1,0 +1,13 @@
+# syntax=docker/dockerfile:1
+FROM debian:bookworm-slim AS build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    make gcc-mingw-w64-x86-64 libz-mingw-w64-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY Makefile ./
+COPY src/ src/
+COPY lupinho/src/ lupinho/src/
+RUN make -j"$(nproc)" libretro-win
+
+FROM scratch
+COPY --from=build /src/dist/ /
