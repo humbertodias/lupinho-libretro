@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
@@ -23,6 +24,29 @@ static int lupi_mkdir(const char *path) { return mkdir(path, 0755); }
 #include <zlib.h>
 
 #include "zip.h"
+
+static char zip_error[512];
+static char extract_root[512];
+
+static void set_error(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(zip_error, sizeof(zip_error), fmt, args);
+    va_end(args);
+    fprintf(stderr, "%s\n", zip_error);
+}
+
+void lupi_set_extract_root(const char *root) {
+    if (!root || !root[0]) {
+        extract_root[0] = '\0';
+        return;
+    }
+    snprintf(extract_root, sizeof(extract_root), "%s", root);
+}
+
+const char *lupi_zip_error(void) {
+    return zip_error;
+}
 
 
 static int create_parent_directories(const char *filepath) {
@@ -63,30 +87,90 @@ static int is_path_safe(const char *base_dir, const char *filepath) {
     return 1;
 }
 
-static const char *temp_root(void) {
-    const char *p = getenv("TMPDIR");
-    if (p && p[0]) return p;
-    p = getenv("TEMP");
-    if (p && p[0]) return p;
-    p = getenv("TMP");
-    if (p && p[0]) return p;
-    return "/tmp";
+static int parent_of(const char *path, char *out, size_t out_size) {
+    size_t len = strlen(path);
+    size_t slash;
+
+    while (len > 0 && (path[len - 1] == '/' || path[len - 1] == '\\')) len--;
+    slash = len;
+    while (slash > 0 && path[slash - 1] != '/' && path[slash - 1] != '\\') slash--;
+    if (slash == 0) return -1;
+
+    len = slash - 1;
+    if (len == 0) {
+        if (out_size < 2) return -1;
+        memcpy(out, "/", 2);
+        return 0;
+    }
+    if (len + 1 > out_size) return -1;
+    memcpy(out, path, len);
+    out[len] = '\0';
+    return 0;
 }
 
-static int make_temp_dir(char *out_dir, size_t out_dir_size) {
-    const char *root = temp_root();
-    size_t n = strlen(root);
+static int try_make_under(const char *root, char *out_dir, size_t out_dir_size) {
+    size_t n;
     int i;
 
+    if (!root || !root[0]) return -1;
+    n = strlen(root);
     while (n > 0 && (root[n - 1] == '/' || root[n - 1] == '\\')) n--;
+    if (n == 0) return -1;
 
     for (i = 0; i < 128; i++) {
         int written = snprintf(out_dir, out_dir_size, "%.*s/lupi-%ld-%d",
                                (int)n, root, (long)getpid(), i);
-        if (written < 0 || (size_t)written >= out_dir_size) return -1;
+        if (written < 0 || (size_t)written >= out_dir_size) {
+            errno = ENAMETOOLONG;
+            return -1;
+        }
         if (lupi_mkdir(out_dir) == 0) return 0;
         if (errno != EEXIST) return -1;
     }
+    errno = EEXIST;
+    return -1;
+}
+
+/* Android apps cannot create /tmp. Prefer a directory RetroArch already
+ * grants, then the usual environment variables, then the folder that holds
+ * the .lupi, and only then /tmp. */
+static int make_temp_dir(const char *lupi_path, char *out_dir, size_t out_dir_size) {
+    const char *roots[6];
+    char content_dir[PATH_MAX];
+    char detail[384];
+    int n = 0;
+    int r;
+    const char *env;
+
+    detail[0] = '\0';
+
+    if (extract_root[0]) roots[n++] = extract_root;
+
+    env = getenv("TMPDIR");
+    if (env && env[0]) roots[n++] = env;
+    env = getenv("TEMP");
+    if (env && env[0]) roots[n++] = env;
+    env = getenv("TMP");
+    if (env && env[0]) roots[n++] = env;
+
+    if (lupi_path && parent_of(lupi_path, content_dir, sizeof(content_dir)) == 0)
+        roots[n++] = content_dir;
+
+    roots[n++] = "/tmp";
+
+    for (r = 0; r < n; r++) {
+        if (try_make_under(roots[r], out_dir, out_dir_size) == 0) return 0;
+        {
+            int err = errno;
+            size_t used = strlen(detail);
+            if (used + 1 < sizeof(detail)) {
+                snprintf(detail + used, sizeof(detail) - used, "%s%s (%s)",
+                         used ? "; " : "", roots[r], strerror(err));
+            }
+        }
+    }
+
+    set_error("Failed to create temp directory: %s", detail);
     return -1;
 }
 
@@ -147,14 +231,15 @@ int extract_lupi_to_tmp(const char *lupi_path, char *out_dir, size_t out_dir_siz
     int files_extracted = 0;
     int ret = 0;
 
-    if (make_temp_dir(out_dir, out_dir_size) != 0) {
-        fprintf(stderr, "Failed to create temp directory: %s\n", strerror(errno));
-        if (zip) fclose(zip);
+    zip_error[0] = '\0';
+
+    if (!zip) {
+        set_error("Failed to open %s: %s", lupi_path, strerror(errno));
         return 1;
     }
 
-    if (!zip) {
-        fprintf(stderr, "Failed to open %s: %s\n", lupi_path, strerror(errno));
+    if (make_temp_dir(lupi_path, out_dir, out_dir_size) != 0) {
+        fclose(zip);
         return 1;
     }
 
@@ -166,7 +251,7 @@ int extract_lupi_to_tmp(const char *lupi_path, char *out_dir, size_t out_dir_siz
         uint32_t sig = read_u32(header);
         if (sig == 0x02014b50u || sig == 0x06054b50u) break;
         if (sig != 0x04034b50u) {
-            fprintf(stderr, "Invalid zip signature in %s\n", lupi_path);
+            set_error("Invalid zip signature in %s", lupi_path);
             ret = 1;
             break;
         }
@@ -189,7 +274,7 @@ int extract_lupi_to_tmp(const char *lupi_path, char *out_dir, size_t out_dir_siz
         if (extra > 0) fseek(zip, extra, SEEK_CUR);
 
         if ((flags & 0x8) != 0) {
-            fprintf(stderr, "Unsupported zip data descriptor in %s\n", name);
+            set_error("Unsupported zip data descriptor in %s", name);
             free(name);
             ret = 1;
             break;
@@ -198,7 +283,7 @@ int extract_lupi_to_tmp(const char *lupi_path, char *out_dir, size_t out_dir_siz
         char filepath[PATH_MAX];
         snprintf(filepath, sizeof(filepath), "%s/%s", out_dir, name);
         if (!is_path_safe(out_dir, filepath)) {
-            fprintf(stderr, "Skipping unsafe path: %s\n", name);
+            set_error("Skipping unsafe path: %s", name);
             fseek(zip, (long)comp_size, SEEK_CUR);
             free(name);
             continue;
@@ -215,7 +300,7 @@ int extract_lupi_to_tmp(const char *lupi_path, char *out_dir, size_t out_dir_siz
         }
 
         if (create_parent_directories(filepath) != 0) {
-            fprintf(stderr, "Failed to create directories for: %s\n", filepath);
+            set_error("Failed to create directories for: %s: %s", filepath, strerror(errno));
             fseek(zip, (long)comp_size, SEEK_CUR);
             free(name);
             continue;
@@ -223,7 +308,7 @@ int extract_lupi_to_tmp(const char *lupi_path, char *out_dir, size_t out_dir_siz
 
         FILE *out = fopen(filepath, "wb");
         if (!out) {
-            fprintf(stderr, "Failed to write %s\n", filepath);
+            set_error("Failed to write %s: %s", filepath, strerror(errno));
             fseek(zip, (long)comp_size, SEEK_CUR);
             free(name);
             ret = 1;
@@ -244,7 +329,7 @@ int extract_lupi_to_tmp(const char *lupi_path, char *out_dir, size_t out_dir_siz
         } else if (method == 8) {
             if (inflate_entry(zip, out, comp_size, uncomp_size) != 0) ret = 1;
         } else {
-            fprintf(stderr, "Unsupported compression method %u in %s\n", method, name);
+            set_error("Unsupported compression method %u in %s", method, name);
             fseek(zip, (long)comp_size, SEEK_CUR);
             ret = 1;
         }
@@ -256,8 +341,10 @@ int extract_lupi_to_tmp(const char *lupi_path, char *out_dir, size_t out_dir_siz
 
     fclose(zip);
     if (files_extracted == 0) {
-        fprintf(stderr, "No files extracted from %s\n", lupi_path);
+        set_error("No files extracted from %s", lupi_path);
         ret = 1;
+    } else if (ret != 0 && zip_error[0] == '\0') {
+        set_error("Failed to extract %s", lupi_path);
     }
     return ret;
 }

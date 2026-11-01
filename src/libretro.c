@@ -236,8 +236,15 @@ static bool start_game(const char *path) {
     }
 
     if (path_ends_with(path, ".lupi")) {
+        const char *save_dir = NULL;
+        /* Android cannot mkdir /tmp. RetroArch's save directory is writable. */
+        if (!environ_cb || !environ_cb(RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY, &save_dir))
+            save_dir = NULL;
+        lupi_set_extract_root(save_dir);
+
         if (extract_lupi_to_tmp(path, temp_game_dir, sizeof(temp_game_dir)) != 0) {
-            log_msg(RETRO_LOG_ERROR, "[Lupinho] Failed to extract %s\n", path);
+            log_msg(RETRO_LOG_ERROR, "[Lupinho] Failed to extract %s: %s\n",
+                    path, lupi_zip_error());
             return false;
         }
         extracted_to_tmp = 1;
