@@ -13,6 +13,7 @@
 #include "zip.h"
 #include "palette.h"
 #include "video.h"
+#include "blit.h"
 
 #define SAMPLE_RATE 44100
 #define AUDIO_FRAMES (SAMPLE_RATE / 60)
@@ -186,6 +187,7 @@ static bool setup_game(const char *dir) {
 static bool load_game_at(const char *dir) {
     char game_path[512];
 
+    lupi_bitmap_cache_clear();
     snprintf(game_dir, sizeof(game_dir), "%s", dir);
     lua_api_init();
     if (!globalLuaState) {
@@ -266,6 +268,7 @@ static void stop_game(void) {
         lua_api_close();
         game_loaded = 0;
     }
+    lupi_bitmap_cache_clear();
     if (extracted_to_tmp) {
         cleanup_lupi_tmp(temp_game_dir);
         extracted_to_tmp = 0;

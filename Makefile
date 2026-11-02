@@ -49,7 +49,7 @@ CORE_FILE := lupinho_libretro.$(EXT)
 OUTPUT := dist/$(CORE_FILE)
 CORE_PATH := $(CORE_DIR)/$(CORE_FILE)
 
-CORE_SRCS := libretro.c input.c pointer.c video.c palette.c zip.c raylib_shim.c
+CORE_SRCS := libretro.c input.c pointer.c video.c palette.c zip.c raylib_shim.c blit.c
 CORE_OBJS := $(addprefix build/,$(CORE_SRCS:.c=.o))
 
 LUA_SRCS := \
@@ -94,7 +94,11 @@ build/lua_api.o: $(LUPI)/lua_api.c
 # BGR555 channel order used by lupi-codec.
 build/ui.o: $(LUPI)/ui.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -Dpalset=lupi_core_palset -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -Dpalset=lupi_core_palset \
+		-Ddraw_tile=lupi_core_draw_tile_unused \
+		-Ddraw_spr=lupi_core_draw_spr_unused \
+		-Ddraw_map_layer=lupi_core_draw_map_layer_unused \
+		-c $< -o $@
 
 build/lua/%.o: $(LUA)/%.c
 	@mkdir -p $(dir $@)
