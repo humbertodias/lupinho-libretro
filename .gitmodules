@@ -1,7 +1,7 @@
 [submodule "lupinho"]
 	path = lupinho
-	url = https://github.com/lupi-org-br/lupinho.git
-	branch = main
+	url = https://github.com/humbertodias/lupinho.git
+	branch = fur
 [submodule "lupi-codec"]
 	path = lupi-codec
 	url = https://github.com/humbertodias/lupi-codec.git
