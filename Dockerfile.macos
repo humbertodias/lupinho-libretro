@@ -3,7 +3,7 @@ FROM crazymax/osxcross:15.5-debian AS osxcross
 FROM debian:trixie-slim AS build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     make clang lld libc6-dev \
-    cmake ninja-build python3 git ca-certificates \
+    cmake ninja-build pkg-config python3 git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 ENV PATH="/osxcross/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/osxcross/lib"

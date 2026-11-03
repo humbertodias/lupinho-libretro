@@ -251,7 +251,7 @@ libretro-android:
 	  LIBS="$(ANDROID_LIBS)" \
 	  LUAFLAGS="-DLUA_USE_POSIX" \
 	  FURNACE_TAG="android-$$abi" \
-	  FURNACE_CMAKE_EXTRA="-DCMAKE_TOOLCHAIN_FILE=$$ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI=$$abi -DANDROID_PLATFORM=android-$$api -DANDROID_STL=c++_static -DSYSTEM_ZLIB=ON"; \
+	  FURNACE_CMAKE_EXTRA="-DCMAKE_TOOLCHAIN_FILE=$$ndk/build/cmake/android.toolchain.cmake -DANDROID_ABI=$$abi -DANDROID_PLATFORM=android-$$api -DANDROID_STL=c++_static -DSYSTEM_ZLIB=OFF"; \
 	cp -f src/lupinho_libretro.info "dist/android/$$abi/lupinho_libretro.info"; \
 	"$$strip" --strip-unneeded "dist/android/$$abi/lupinho_libretro_android.so"
 
