@@ -2,12 +2,15 @@
 FROM debian:bookworm-slim AS build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential zlib1g-dev \
+    cmake ninja-build python3 git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
+COPY lupinho/src/music/fetch_furnace.sh /tmp/fetch_furnace.sh
+RUN sh /tmp/fetch_furnace.sh /furnace
 COPY Makefile ./
 COPY src/ src/
 COPY lupinho/src/ lupinho/src/
-RUN make -j"$(nproc)" libretro
+RUN make -j"$(nproc)" libretro FURNACE_SRC=/furnace
 
 FROM scratch
 COPY --from=build /src/dist/ /
