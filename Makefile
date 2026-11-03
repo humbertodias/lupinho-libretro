@@ -8,9 +8,11 @@ ifeq ($(wildcard $(LUPI)/ui.c),)
 $(error lupinho submodule is missing. Run: git submodule update --init)
 endif
 
-MINGW_CC ?= x86_64-w64-mingw32-gcc
+# The win32 thread model ships a libstdc++ without std::thread. Furnace's log uses it.
+MINGW_CC ?= x86_64-w64-mingw32-gcc-posix
 WIN_SOFLAGS := -shared
 WIN_LIBS := -lz -lm -static-libgcc -static-libstdc++
+PTHREAD_LINK ?= -pthread
 
 ifeq ($(OS),Windows_NT)
   EXT := dll
@@ -184,7 +186,7 @@ $(OUTPUT): $(OBJS) $(FURNACE_LIB) $(FUR_PLAYER_OBJ)
 	    *) fixed="$$fixed $(LUPI)/$$lib" ;; \
 	  esac; \
 	done; \
-	$(CXX) $(SOFLAGS) -o $@ $(OBJS) $(FUR_PLAYER_OBJ) $(FUR_WHOLE) $$fixed $(LIBS) -pthread
+	$(CXX) $(SOFLAGS) -o $@ $(OBJS) $(FUR_PLAYER_OBJ) $(FUR_WHOLE) $$fixed $(LIBS) $(PTHREAD_LINK)
 	cp -f src/lupinho_libretro.info dist/lupinho_libretro.info
 
 build/%.o: src/%.c
@@ -211,6 +213,7 @@ build/lua/%.o: $(LUA)/%.c
 
 libretro-win:
 	$(MAKE) all CC="$(MINGW_CC)" EXT=dll SOFLAGS="$(WIN_SOFLAGS)" LIBS="$(WIN_LIBS)" LUAFLAGS="" \
+	  PTHREAD_LINK="-Wl,-Bstatic -lwinpthread" \
 	  FURNACE_TAG=windows \
 	  FURNACE_CMAKE_EXTRA="-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_C_COMPILER=$(MINGW_CC) -DCMAKE_CXX_COMPILER=$(subst gcc,g++,$(MINGW_CC)) -DSYSTEM_ZLIB=OFF"
 
