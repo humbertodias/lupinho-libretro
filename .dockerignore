@@ -2,3 +2,5 @@
 **/.DS_Store
 /build
 /dist
+lupinho/src/music/furnace-build-*/
+lupinho/src/music/fur_player-*.o

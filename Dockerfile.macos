@@ -3,22 +3,51 @@ FROM crazymax/osxcross:15.5-debian AS osxcross
 FROM debian:trixie-slim AS build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     make clang lld libc6-dev \
+    cmake ninja-build pkg-config python3 git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 ENV PATH="/osxcross/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/osxcross/lib"
 WORKDIR /src
+COPY lupinho/src/music/fetch_furnace.sh /tmp/fetch_furnace.sh
+RUN sh /tmp/fetch_furnace.sh /furnace
 COPY Makefile ./
 COPY src/ src/
 COPY lupinho/src/ lupinho/src/
 RUN --mount=type=bind,from=osxcross,source=/osxcross,target=/osxcross \
+    set -eu; \
+    sdk=$(ls -d /osxcross/SDK/MacOSX*.sdk | head -1); \
+    ar=$(ls /osxcross/bin/x86_64-apple-darwin*-ar | head -1); \
+    ranlib=$(ls /osxcross/bin/x86_64-apple-darwin*-ranlib | head -1); \
+    ln -sfn "$ar" /osxcross/bin/apple-ar 2>/dev/null || true; \
+    ln -sfn "$ranlib" /osxcross/bin/apple-ranlib 2>/dev/null || true; \
+    if [ ! -e /osxcross/bin/apple-ar ]; then \
+      mkdir -p /usr/local/libexec; \
+      printf '#!/bin/sh\nexec %s "$@"\n' "$ar" > /usr/local/libexec/apple-ar; \
+      chmod +x /usr/local/libexec/apple-ar; \
+      mkdir -p /tmp/ar-first; \
+      ln -s /usr/local/libexec/apple-ar /tmp/ar-first/ar; \
+      export PATH="/tmp/ar-first:${PATH}"; \
+    fi; \
+    x86_intool=$(ls /osxcross/bin/x86_64-apple-darwin*-install_name_tool | head -1); \
+    x86_otool=$(ls /osxcross/bin/x86_64-apple-darwin*-otool | head -1); \
+    x86_extra="-DCMAKE_SYSTEM_NAME=Darwin -DCMAKE_SYSTEM_PROCESSOR=x86_64 -DCMAKE_C_COMPILER=o64-clang -DCMAKE_CXX_COMPILER=o64-clang++ -DCMAKE_OBJC_COMPILER=o64-clang -DCMAKE_OBJCXX_COMPILER=o64-clang++ -DCMAKE_OSX_SYSROOT=${sdk} -DCMAKE_AR=${ar} -DCMAKE_RANLIB=${ranlib} -DCMAKE_INSTALL_NAME_TOOL=${x86_intool} -DCMAKE_OTOOL=${x86_otool} -DSYSTEM_ZLIB=OFF"; \
+    arm_ar=$(ls /osxcross/bin/arm64-apple-darwin*-ar | head -1); \
+    arm_ranlib=$(ls /osxcross/bin/arm64-apple-darwin*-ranlib | head -1); \
+    arm_intool=$(ls /osxcross/bin/arm64-apple-darwin*-install_name_tool 2>/dev/null | head -1 || true); \
+    arm_otool=$(ls /osxcross/bin/arm64-apple-darwin*-otool 2>/dev/null | head -1 || true); \
+    if [ -z "$arm_intool" ]; then arm_intool=$x86_intool; fi; \
+    if [ -z "$arm_otool" ]; then arm_otool=$x86_otool; fi; \
+    arm_extra="-DCMAKE_SYSTEM_NAME=Darwin -DCMAKE_SYSTEM_PROCESSOR=arm64 -DCMAKE_C_COMPILER=oa64-clang -DCMAKE_CXX_COMPILER=oa64-clang++ -DCMAKE_OBJC_COMPILER=oa64-clang -DCMAKE_OBJCXX_COMPILER=oa64-clang++ -DCMAKE_OSX_SYSROOT=${sdk} -DCMAKE_AR=${arm_ar} -DCMAKE_RANLIB=${arm_ranlib} -DCMAKE_INSTALL_NAME_TOOL=${arm_intool} -DCMAKE_OTOOL=${arm_otool} -DSYSTEM_ZLIB=OFF"; \
     make -j"$(nproc)" libretro CC=o64-clang EXT=dylib \
-    SOFLAGS=-dynamiclib LIBS="-lz -lm" LUAFLAGS=-DLUA_USE_POSIX \
+      SOFLAGS=-dynamiclib LIBS="-lz -lm" LUAFLAGS=-DLUA_USE_POSIX \
+      FURNACE_SRC=/furnace FURNACE_TAG=osx-x86_64 FURNACE_CMAKE_EXTRA="$x86_extra" \
     && mv dist/lupinho_libretro.dylib /tmp/x86_64.dylib \
     && rm -rf build \
     && make -j"$(nproc)" libretro CC=oa64-clang EXT=dylib \
-    SOFLAGS=-dynamiclib LIBS="-lz -lm" LUAFLAGS=-DLUA_USE_POSIX \
+      SOFLAGS=-dynamiclib LIBS="-lz -lm" LUAFLAGS=-DLUA_USE_POSIX \
+      FURNACE_SRC=/furnace FURNACE_TAG=osx-arm64 FURNACE_CMAKE_EXTRA="$arm_extra" \
     && /osxcross/bin/x86_64-apple-darwin*-lipo -create \
-    /tmp/x86_64.dylib dist/lupinho_libretro.dylib -output /tmp/universal.dylib \
+      /tmp/x86_64.dylib dist/lupinho_libretro.dylib -output /tmp/universal.dylib \
     && mv /tmp/universal.dylib dist/lupinho_libretro.dylib
 
 FROM scratch

@@ -1,4 +1,5 @@
-[![release](https://github.com/humbertodias/lupinho-libretro/actions/workflows/release.yml/badge.svg)](https://github.com/humbertodias/lupinho-libretro/actions/workflows/release.yml)
+[![ci](https://github.com/humbertodias/lupinho-libretro/actions/workflows/ci.yml/badge.svg)](https://github.com/humbertodias/lupinho-libretro/actions/workflows/ci.yml)
+[![cd](https://github.com/humbertodias/lupinho-libretro/actions/workflows/cd.yml/badge.svg)](https://github.com/humbertodias/lupinho-libretro/actions/workflows/cd.yml)
 ![GitHub all releases](https://img.shields.io/github/downloads/humbertodias/lupinho-libretro/total)
 
 # Lupinho Libretro

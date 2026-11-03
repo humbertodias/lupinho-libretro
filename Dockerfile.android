@@ -2,6 +2,7 @@
 FROM debian:bookworm-slim AS build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     make curl ca-certificates unzip zip file \
+    cmake ninja-build python3 git g++ \
     && rm -rf /var/lib/apt/lists/*
 RUN curl -fL --retry 3 -o /tmp/ndk.zip \
     https://dl.google.com/android/repository/android-ndk-r28c-linux.zip \
@@ -9,11 +10,13 @@ RUN curl -fL --retry 3 -o /tmp/ndk.zip \
     && rm /tmp/ndk.zip
 ENV ANDROID_NDK=/opt/android-ndk-r28c
 WORKDIR /src
+COPY lupinho/src/music/fetch_furnace.sh /tmp/fetch_furnace.sh
+RUN sh /tmp/fetch_furnace.sh /furnace
 COPY Makefile ./
 COPY src/ src/
 COPY lupinho/src/ lupinho/src/
 # bookworm file(1) prints "Intel 80386"; newer file prints "Intel i386".
-RUN make libretro-android-all \
+RUN make libretro-android-all FURNACE_SRC=/furnace \
     && file dist/android/arm64-v8a/lupinho_libretro_android.so | grep -q "ARM aarch64" \
     && file dist/android/armeabi-v7a/lupinho_libretro_android.so | grep -q "ARM" \
     && file dist/android/x86_64/lupinho_libretro_android.so | grep -q "x86-64" \

@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            artifact: lupinho_libretro.so
+          - name: macos
+            artifact: lupinho_libretro.dylib
+          - name: windows
+            artifact: lupinho_libretro.dll
+          - name: android
+            artifact: lupinho_libretro_android.zip
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # actions/checkout recurses into every nested gitlink while setting up
+      # submodule auth. lupinho records src/libs/linux/raylib with no URL, and
+      # the core does not compile it, so init only the direct submodules.
+      - name: Checkout submodules
+        run: git submodule update --init --depth 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build
+        run: make docker PLATFORM=${{ matrix.name }}
+
+      - name: Upload core
+        uses: actions/upload-artifact@v7
+        with:
+          name: lupinho-libretro-${{ matrix.name }}
+          path: |
+            dist/${{ matrix.artifact }}
+            dist/lupinho_libretro.info
+          if-no-files-found: error
