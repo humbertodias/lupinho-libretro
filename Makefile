@@ -231,7 +231,8 @@ ANDROID_API ?= 24
 ANDROID_ABI ?= arm64-v8a
 ANDROID_ABIS ?= arm64-v8a armeabi-v7a x86_64 x86
 ANDROID_SOFLAGS := -shared -Wl,--no-undefined -Wl,-z,max-page-size=16384
-ANDROID_LIBS := -lz -lm
+# RetroArch does not ship libc++_shared.so next to cores. Bundle the static libc++.
+ANDROID_LIBS := -lz -lm -static-libstdc++
 
 libretro-android:
 	@set -eu; \
