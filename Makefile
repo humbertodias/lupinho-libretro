@@ -49,7 +49,7 @@ CORE_FILE := lupinho_libretro.$(EXT)
 OUTPUT := dist/$(CORE_FILE)
 CORE_PATH := $(CORE_DIR)/$(CORE_FILE)
 
-CORE_SRCS := libretro.c input.c pointer.c video.c palette.c zip.c raylib_shim.c blit.c
+CORE_SRCS := libretro.c input.c pointer.c video.c palette.c zip.c raylib_shim.c blit.c music.c
 CORE_OBJS := $(addprefix build/,$(CORE_SRCS:.c=.o))
 
 LUA_SRCS := \

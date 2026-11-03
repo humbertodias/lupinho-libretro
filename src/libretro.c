@@ -14,6 +14,7 @@
 #include "palette.h"
 #include "video.h"
 #include "blit.h"
+#include "music.h"
 
 #define SAMPLE_RATE 44100
 #define AUDIO_FRAMES (SAMPLE_RATE / 60)
@@ -350,6 +351,7 @@ void retro_run(void) {
     }
 
     lua_api_call_update();
+    music_update(1.0f / 60.0f);
     present_frame_rgb565(video_buffer);
     if (video_cb) {
         video_cb(video_buffer, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH * sizeof(uint16_t));
