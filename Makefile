@@ -154,7 +154,7 @@ $(FURNACE_LIB):
 	  echo "Clone https://github.com/tildearrow/furnace or set FURNACE_SRC." >&2; \
 	  exit 1; }
 	sh $(LUPI)/music/build_furnace.sh $(FURNACE_TAG) "$(FURNACE_SRC)" \
-	  $(FURNACE_CMAKE_HEADLESS) $(FURNACE_CMAKE_EXTRA)
+	  $(FURNACE_CMAKE_HEADLESS) $(FURNACE_CMAKE_EXTRA) -DSYSTEM_ZLIB=OFF
 
 $(FUR_PLAYER_OBJ): $(LUPI)/music/fur_player.cpp $(LUPI)/music/fur_player.h $(FURNACE_LIB)
 	$(CXX) -c $(LUPI)/music/fur_player.cpp -o $@ $(FUR_CXXFLAGS)

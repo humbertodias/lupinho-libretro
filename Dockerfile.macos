@@ -34,12 +34,12 @@ RUN --mount=type=bind,from=osxcross,source=/osxcross,target=/osxcross \
     arm_extra="-DCMAKE_SYSTEM_NAME=Darwin -DCMAKE_SYSTEM_PROCESSOR=arm64 -DCMAKE_C_COMPILER=oa64-clang -DCMAKE_CXX_COMPILER=oa64-clang++ -DCMAKE_OBJC_COMPILER=oa64-clang -DCMAKE_OBJCXX_COMPILER=oa64-clang++ -DCMAKE_OSX_SYSROOT=${sdk} -DCMAKE_AR=${arm_ar} -DCMAKE_RANLIB=${arm_ranlib} -DSYSTEM_ZLIB=OFF"; \
     make -j"$(nproc)" libretro CC=o64-clang EXT=dylib \
       SOFLAGS=-dynamiclib LIBS="-lz -lm" LUAFLAGS=-DLUA_USE_POSIX \
-      FURNACE_SRC=/furnace FURNACE_TAG=osx-x86_64 FURNACE_CMAKE_EXTRA="$$x86_extra" \
+      FURNACE_SRC=/furnace FURNACE_TAG=osx-x86_64 FURNACE_CMAKE_EXTRA="$x86_extra" \
     && mv dist/lupinho_libretro.dylib /tmp/x86_64.dylib \
     && rm -rf build \
     && make -j"$(nproc)" libretro CC=oa64-clang EXT=dylib \
       SOFLAGS=-dynamiclib LIBS="-lz -lm" LUAFLAGS=-DLUA_USE_POSIX \
-      FURNACE_SRC=/furnace FURNACE_TAG=osx-arm64 FURNACE_CMAKE_EXTRA="$$arm_extra" \
+      FURNACE_SRC=/furnace FURNACE_TAG=osx-arm64 FURNACE_CMAKE_EXTRA="$arm_extra" \
     && /osxcross/bin/x86_64-apple-darwin*-lipo -create \
       /tmp/x86_64.dylib dist/lupinho_libretro.dylib -output /tmp/universal.dylib \
     && mv /tmp/universal.dylib dist/lupinho_libretro.dylib
