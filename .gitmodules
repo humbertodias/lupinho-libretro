@@ -1,8 +1,8 @@
-[submodule "lupinho"]
-	path = lupinho
-	url = https://github.com/humbertodias/lupinho.git
-	branch = fur
 [submodule "lupi-codec"]
 	path = lupi-codec
 	url = https://github.com/humbertodias/lupi-codec.git
 	branch = macos
+[submodule "lupinho"]
+	path = lupinho
+	url = https://github.com/humbertodias/lupinho.git
+	branch = fur
