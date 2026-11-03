@@ -153,8 +153,15 @@ $(FURNACE_LIB):
 	  echo "Furnace sources not found at $(FURNACE_SRC)" >&2; \
 	  echo "Clone https://github.com/tildearrow/furnace or set FURNACE_SRC." >&2; \
 	  exit 1; }
+	mkdir -p $(FURNACE_BUILD)
+	printf '%s\n' \
+	  'set(CMAKE_C_COMPILE_OPTIONS_PIE -fPIC)' \
+	  'set(CMAKE_CXX_COMPILE_OPTIONS_PIE -fPIC)' \
+	  > $(FURNACE_BUILD)/force-pic.cmake
 	sh $(LUPI)/music/build_furnace.sh $(FURNACE_TAG) "$(FURNACE_SRC)" \
-	  $(FURNACE_CMAKE_HEADLESS) $(FURNACE_CMAKE_EXTRA) -DSYSTEM_ZLIB=OFF
+	  $(FURNACE_CMAKE_HEADLESS) $(FURNACE_CMAKE_EXTRA) \
+	  -DCMAKE_PROJECT_INCLUDE=$(abspath $(FURNACE_BUILD))/force-pic.cmake \
+	  -DSYSTEM_ZLIB=OFF
 
 $(FUR_PLAYER_OBJ): $(LUPI)/music/fur_player.cpp $(LUPI)/music/fur_player.h $(FURNACE_LIB)
 	$(CXX) -c $(LUPI)/music/fur_player.cpp -o $@ $(FUR_CXXFLAGS)
