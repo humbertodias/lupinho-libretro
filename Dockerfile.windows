@@ -10,7 +10,11 @@ RUN sh /tmp/fetch_furnace.sh /furnace
 COPY Makefile ./
 COPY src/ src/
 COPY lupinho/src/ lupinho/src/
-RUN make -j"$(nproc)" libretro-win FURNACE_SRC=/furnace
+# The image has MinGW's archiver, not binutils' ar. Furnace objects are packed with ar.
+RUN set -eu; \
+    ln -sfn "$(command -v x86_64-w64-mingw32-ar)" /usr/local/bin/ar; \
+    ln -sfn "$(command -v x86_64-w64-mingw32-ranlib)" /usr/local/bin/ranlib; \
+    make -j"$(nproc)" libretro-win FURNACE_SRC=/furnace
 
 FROM scratch
 COPY --from=build /src/dist/ /
