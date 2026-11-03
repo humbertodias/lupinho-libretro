@@ -159,6 +159,8 @@ $(FURNACE_LIB):
 	printf '%s\n' \
 	  'set(CMAKE_C_COMPILE_OPTIONS_PIE -fPIC)' \
 	  'set(CMAKE_CXX_COMPILE_OPTIONS_PIE -fPIC)' \
+	  '# Android marks the headless player as a mobile app, which then requires SDL2.' \
+	  'add_compile_options(-UIS_MOBILE)' \
 	  > $(FURNACE_BUILD)/force-pic.cmake
 	sh $(LUPI)/music/build_furnace.sh $(FURNACE_TAG) "$(FURNACE_SRC)" \
 	  $(FURNACE_CMAKE_HEADLESS) $(FURNACE_CMAKE_EXTRA) \
